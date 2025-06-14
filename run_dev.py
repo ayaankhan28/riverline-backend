@@ -1,43 +1,37 @@
 #!/usr/bin/env python3
 """
 Development runner script
-This script runs the FastAPI server with integrated LiveKit worker.
+This script runs both the FastAPI server and the LiveKit worker in parallel.
 Run this script with: python run_dev.py
 """
 
 import subprocess
 import sys
 import signal
-import os
-
-def signal_handler(sig, frame):
-    print("\n🛑 Received interrupt signal. Shutting down...")
-    sys.exit(0)
+import time
+from threading import Thread
 
 def run_fastapi():
-    """Run the FastAPI server with integrated LiveKit worker"""
-    print("🚀 Starting FastAPI server with integrated LiveKit worker...")
-    
-    # Check for required environment variables
-    required_vars = [
-        "LIVEKIT_URL", 
-        "LIVEKIT_API_KEY", 
-        "LIVEKIT_API_SECRET", 
-        "GROQ_API_KEY"
-    ]
-    
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    if missing_vars:
-        print(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
-        print("Please check your .env file")
-        return
-    
+    """Run the FastAPI server"""
+    print("🚀 Starting FastAPI server...")
     subprocess.run([
         sys.executable, "-m", "uvicorn", 
         "main:app", 
         "--port", "8000", 
         "--reload"
     ])
+
+def run_worker():
+    """Run the LiveKit worker"""
+    print("🤖 Starting LiveKit worker...")
+    # Give FastAPI a moment to start first
+    time.sleep(2)
+    subprocess.run([sys.executable, "worker.py","dev"])
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n🛑 Shutting down...")
+    sys.exit(0)
 
 if __name__ == "__main__":
     # Set up signal handler for graceful shutdown
@@ -46,13 +40,19 @@ if __name__ == "__main__":
     print("🔥 Starting development environment...")
     print("📡 FastAPI will be available at: http://localhost:8000")
     print("📄 API docs will be available at: http://localhost:8000/docs")
-    print("🔌 WebSocket endpoint: ws://localhost:8000/ws/transcription/{call_id}")
-    print("🤖 LiveKit worker is integrated within FastAPI")
-    print("Press Ctrl+C to stop the service\n")
+    print("🤖 LiveKit worker will connect to your LiveKit server")
+    print("Press Ctrl+C to stop all services\n")
+    
+    # Start both services in separate threads
+    fastapi_thread = Thread(target=run_fastapi, daemon=True)
+    worker_thread = Thread(target=run_worker, daemon=True)
+    
+    fastapi_thread.start()
+    worker_thread.start()
     
     try:
-        run_fastapi()
+        # Keep main thread alive
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n🛑 Shutting down...")
-    except Exception as e:
-        print(f"❌ Error starting development environment: {e}") 
+        print("\n�� Shutting down...") 
