@@ -32,6 +32,8 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
     CARTESIA_API_KEY: str = os.getenv("CARTESIA_API_KEY")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    SARVAM_API_KEY: str = os.getenv("SAVRAM_API_KEY")
 
     @property
     def get_database_url(self) -> str:

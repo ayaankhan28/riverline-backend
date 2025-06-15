@@ -3,13 +3,16 @@ from pydantic import BaseModel
 from livekit import api
 from app.core.config import settings
 import json
+from typing import Optional
 import uuid
 
 router = APIRouter()
 
 class CallRequest(BaseModel):
     phone_number: str
-    system_prompt: str
+    system_prompt:str
+    defaulter_name: str
+    agentId: int
 
 @router.post("/start-call")
 async def start_call(req: CallRequest):
@@ -28,7 +31,9 @@ async def start_call(req: CallRequest):
             room=room_name,
             metadata=json.dumps({
                 "phone_number": req.phone_number,
-                "system_prompt": req.system_prompt
+                "system_prompt": req.system_prompt,
+                "defaulter_name": req.defaulter_name,
+                "agentId": req.agentId
             })
         )
     )

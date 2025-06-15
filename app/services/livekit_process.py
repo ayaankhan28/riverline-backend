@@ -6,19 +6,20 @@ import time
 
 from livekit.agents import Agent, AgentSession, JobContext, AutoSubscribe
 from livekit.agents.llm.chat_context import ChatContext, ChatMessage
-from livekit.plugins import groq, silero, cartesia
+from livekit.plugins import groq, silero, cartesia, sarvam
 from livekit import api
 import asyncio
 
 from app.models.base import SessionLocal
 from app.repositories.call_repository import CallRepository
 from app.services.summary_service import generate_call_summary
+from app.core.config import settings
 
 load_dotenv()
 
 
 class VoiceAgent(Agent):
-    def __init__(self, prompt: str, room_name: str, defaulter_name: str, phone_number: str):
+    def __init__(self, prompt: str, room_name: str, defaulter_name: str, phone_number: str, agentId: int):
         super().__init__(instructions=prompt)
         self.dialogue = []
         self.room_name = room_name
@@ -32,8 +33,7 @@ class VoiceAgent(Agent):
         self.call = self.call_repo.create_call(
             defaulter_name=defaulter_name,
             phone_number=phone_number,
-            agent_type="debt_collection",
-            prompt=prompt
+            agentId=agentId,
         )
 
     async def on_user_turn_completed(self, turn_ctx: ChatContext, new_message: ChatMessage) -> None:
@@ -56,6 +56,8 @@ async def entrypoint(ctx: JobContext):
     phone = metadata.get("phone_number")
     prompt = metadata.get("system_prompt", "You are a helpful assistant.")
     defaulter_name = metadata.get("defaulter_name", "Unknown")
+    agentId = metadata.get("agentId", 1)
+    print('Metadata: ', metadata)
 
     if not phone:
         print("❌ Missing phone number")
@@ -73,7 +75,9 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=groq.STT(model="whisper-large-v3-turbo"),
         llm=groq.LLM(model="llama3-8b-8192"),
-        tts=cartesia.TTS(model="sonic-2", voice="f786b574-daa5-4673-aa0c-cbe3e8534c02"),
+        tts=sarvam.TTS(
+      target_language_code="hi-IN",
+      speaker="manisha",api_key=settings.SARVAM_API_KEY),
         vad=silero.VAD.load(),
         turn_detection="vad",
         allow_interruptions=True,
@@ -83,7 +87,8 @@ async def entrypoint(ctx: JobContext):
         prompt=prompt,
         room_name=ctx.room.name,
         defaulter_name=defaulter_name,
-        phone_number=phone
+        phone_number=phone,
+        agentId=agentId
     )
 
     @session.on("conversation_item_added")
@@ -109,23 +114,35 @@ async def entrypoint(ctx: JobContext):
         # Get call history from repository
         call_history = agent.call_repo.get_call_history(agent.call.id)
         
-        # Format history for summary generation
-        messages = [
-            {
+        # Format history for summary generation and calculate duration
+        messages = []
+        first_message_time = None
+        last_message_time = None
+        
+        for history in call_history:
+            messages.append({
                 'role': history.role,
                 'text': history.message
-            }
-            for history in call_history
-        ]
+            })
+            
+            if first_message_time is None:
+                first_message_time = history.created_at
+            last_message_time = history.created_at
+        
+        # Calculate duration in minutes
+        if first_message_time and last_message_time:
+            duration = (last_message_time - first_message_time).total_seconds() / 60
+        else:
+            duration = 0
         
         # Generate summary
         summary = await generate_call_summary(messages)
         
-        # Update call with summary
+        # Update call with summary and duration
         agent.call_repo.update_call(
             call_id=agent.call.id,
-            duration=0, # TODO: Calculate actual duration
-            outcome="Completed",
+            duration=duration,
+            outcome="Completed", 
             summary=summary
         )
         

@@ -22,7 +22,6 @@ class CallResponse(BaseModel):
     id: int
     defaulter_name: str
     phone_number: str
-    agent_type: str
     duration: float | None
     outcome: str | None
     summary: str | None

@@ -2,18 +2,17 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
 
-from ..models.call import Call, CallHistory
+from app.models.call import Call, CallHistory
 
 class CallRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_call(self, defaulter_name: str, phone_number: str, agent_type: str, prompt: str) -> Call:
+    def create_call(self, defaulter_name: str, phone_number: str, agentId: int) -> Call:
         call = Call(
             defaulter_name=defaulter_name,
             phone_number=phone_number,
-            agent_type=agent_type,
-            prompt=prompt
+            agent_id=agentId
         )
         self.db.add(call)
         self.db.commit()
