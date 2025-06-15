@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     TRUNK_HOST: str = os.getenv("TRUNK_HOST")
 
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
+    CARTESIA_API_KEY: str = os.getenv("CARTESIA_API_KEY")
 
     @property
     def get_database_url(self) -> str:
