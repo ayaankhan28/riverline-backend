@@ -75,9 +75,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=groq.STT(model="whisper-large-v3-turbo"),
         llm=groq.LLM(model="llama3-8b-8192"),
-        tts=sarvam.TTS(
-      target_language_code="hi-IN",
-      speaker="manisha",api_key=settings.SARVAM_API_KEY),
+        tts=cartesia.TTS(model="sonic-2", voice="f786b574-daa5-4673-aa0c-cbe3e8534c02"),
         vad=silero.VAD.load(),
         turn_detection="vad",
         allow_interruptions=True,
